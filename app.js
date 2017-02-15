@@ -25,9 +25,20 @@ database.ref('deviceTypes').on('child_changed', type => {
     }).catch(error => console.error(error));
 });
 
+database.ref('settings').on('child_changed', setting => {
+    Promise.all([
+        database.ref(`devices/${setting.val().device}`).once('value'),
+        database.ref(`controls/${setting.val().control}`).once('value')
+    ]).then(values => {
+        let device, control;
+        [device, control] = values;
+        return handlers[device.val().type].set(device, control, setting);
+    });
+});
+
 function syncDeviceSettings(device) {
     const deviceType = device.val().type;
-    const handler = handlers[deviceType];
+    const get = handlers[deviceType];
     const filter = [];
 
     database.ref(`deviceTypes/${deviceType}/controls`).once('value').then(controls => {
@@ -49,13 +60,16 @@ function syncDeviceSettings(device) {
         }).then(() => {
             Promise.all(filter).then(() => {
                 controlIds.forEach(controlId => {
-                    handler(device, controlId).then(value => {
-                        let setting = database.ref('settings').push({
-                            control: controlId,
-                            value
-                        });
-                        database.ref(`devices/${device.key}/settings/${setting.key}`).set(true)
-                    });
+                    database.ref(`controls/${controlId}`).once('value').then(control =>
+                        get(device, control).then(value => {
+                            let setting = database.ref('settings').push({
+                                control: controlId,
+                                device: device.key,
+                                value
+                            });
+                            database.ref(`devices/${device.key}/settings/${setting.key}`).set(true)
+                        })
+                    );
                 });
             });
         }).catch(error => console.error(error));
