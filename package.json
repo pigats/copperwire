@@ -3,6 +3,9 @@
   "version": "0.0.1",
   "description": "connect all the things",
   "main": "app.js",
+  "scripts" : {
+    "start": "node ./app.js"
+  },
   "repository": "git@github.com:pigats/copperwire.git",
   "author": "pigats",
   "license": "MIT",
